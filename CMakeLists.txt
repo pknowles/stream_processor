@@ -13,5 +13,6 @@ add_library(psp INTERFACE)
 target_include_directories(psp INTERFACE include)
 
 if(BUILD_TESTING)
+enable_testing()
 add_subdirectory(test)
 endif()
