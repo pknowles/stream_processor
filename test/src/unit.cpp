@@ -12,39 +12,54 @@
 
 using namespace psp;
 
-// Demonstrate some basic assertions.
-TEST(HelloTest, BasicAssertions) {
-  // Expect two strings not to be equal.
-  EXPECT_STRNE("hello", "world");
-  // Expect equality.
-  EXPECT_EQ(7 * 6, 42);
+TEST(BasicSquaresExample, Functional) {
+    std::vector<int> input{1, 2, 3};
+    parallel_streams squares(input, [](int i){ return i * i; });
+    std::vector<int> result(squares.begin(), squares.end());
+    ASSERT_EQ(result.size(), input.size());
+    EXPECT_EQ(result[0], 1);
+    EXPECT_EQ(result[1], 4);
+    EXPECT_EQ(result[2], 9);
 }
 
-int main() {
-  std::vector<int> thingsToDo;
-  for (int i = 1; i <= 9; ++i) thingsToDo.push_back(i);
+TEST(SingleOpSerial, Functional) {
+    std::vector<int> thingsToDo;
+    for (int i = 0; i < 9; ++i)
+        thingsToDo.push_back(i);
+    auto increment = [](int item) -> int { return item + 1; };
+    parallel_streams runner(thingsToDo, increment, 1);
+    int sum = 0;
+    for (auto &item : runner)
+        sum += item;
+    EXPECT_EQ(sum, 45);
+}
 
-  auto increment = [](int item) -> int {
-    printf("Inc to %i\n", item);
-    return item + 1;
-  };
-  parallel_streams incrementRunner(increment);
+TEST(SingleOpParallel, Functional) {
+    std::vector<int> thingsToDo;
+    for (int i = 0; i < 1000; ++i)
+        thingsToDo.push_back(i);
+    auto increment = [](int item) -> int { return item + 1; };
+    parallel_streams runner(thingsToDo, increment);
+    int sum = 0;
+    for (auto &item : runner)
+        sum += item;
+    EXPECT_EQ(sum, 500500);
+}
 
-  incrementRunner.push_from(thingsToDo);
+TEST(DoubleOpParallel, Functional) {
+    std::vector<int> thingsToDo;
+    for (int i = 0; i < 10; ++i)
+        thingsToDo.push_back(i);
+    auto increment = [](int item) -> int { return item + 1; };
+    auto decrement = [](int item) -> int { return item - 1; };
+    parallel_streams runner1(thingsToDo, increment);
 
-  auto decrement = [](int item) -> int {
-    printf("Dec %i\n", item);
-    return item - 1;
-  };
-  parallel_streams decrementRunner(decrement);
+    // TODO: should be able to avoid this stall!
+    std::vector<int> delete_me(runner1.begin(), runner1.end());
 
-  decrementRunner.take_from(incrementRunner);
-
-  incrementRunner.start(1);
-  decrementRunner.start(1);
-
-  int sum = 0;
-  for (auto& item : decrementRunner) sum += item;
-  printf("Sum: %i <-- should be 45\n", sum);
-  return 0;
+    parallel_streams runner2(delete_me, decrement);
+    int sum = 0;
+    for (auto &item : runner2)
+        sum += item;
+    EXPECT_EQ(sum, 45);
 }

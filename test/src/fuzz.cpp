@@ -18,26 +18,19 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     printf("Inc to %i\n", item);
     return item + 1;
   };
-  parallel_streams incrementRunner(increment);
-
-  incrementRunner.push_from(thingsToDo);
+  parallel_streams incrementRunner(thingsToDo, increment);
 
   auto decrement = [](int item) -> int {
     printf("Dec %i\n", item);
     return item - 1;
   };
-  parallel_streams decrementRunner(decrement);
+  //parallel_streams decrementRunner(incrementRunner, decrement);
 
-  decrementRunner.take_from(incrementRunner);
-
-  incrementRunner.start(1);
-  decrementRunner.start(1);
-
-  int sum = 0;
-  for (auto& item : decrementRunner) sum += item;
-    int verify = 0;
-    for (auto& item : thingsToDo) verify += item;
-  printf("Check %i == %i\n", sum, verify);
-    assert(sum == verify);
+  //int sum = 0;
+  //for (auto& item : decrementRunner) sum += item;
+  //  int verify = 0;
+  //  for (auto& item : thingsToDo) verify += item;
+  //printf("Check %i == %i\n", sum, verify);
+  //  assert(sum == verify);
   return 0;  // Values other than 0 and -1 are reserved for future use.
 }

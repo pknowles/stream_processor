@@ -5,7 +5,9 @@
  * https://opensource.org/licenses/MIT.
  */
 /*
- * Based on code from https://functionalcpp.wordpress.com/2013/08/05/function-traits/
+ * Based on code from
+ * https://functionalcpp.wordpress.com/2013/08/05/function-traits/
+ *
  * Author: gnzlbg
  */
 
@@ -36,18 +38,18 @@ struct function_traits<R (C::*)(Args...) const>
 // functor
 template <class F> struct function_traits {
 private:
-  using call_type = function_traits<decltype(&F::operator())>;
+    using call_type = function_traits<decltype(&F::operator())>;
 
 public:
-  using return_type = typename call_type::return_type;
+    using return_type = typename call_type::return_type;
 
-  // O.o
-  template <typename R, typename As> static As pro_args(std::function<R(As)>);
+    // O.o
+    template <typename R, typename As> static As pro_args(std::function<R(As)>);
 
-  template <typename R, typename... As>
-  static std::tuple<As...> pro_args(std::function<R(As...)>);
+    template <typename R, typename... As>
+    static std::tuple<As...> pro_args(std::function<R(As...)>);
 
-  using arg_type = decltype(pro_args(std::function{std::declval<F>()}));
+    using arg_type = decltype(pro_args(std::function{std::declval<F>()}));
 };
 
 template <class F> struct function_traits<F &> : public function_traits<F> {};
@@ -55,13 +57,13 @@ template <class F> struct function_traits<F &> : public function_traits<F> {};
 template <class F> struct function_traits<F &&> : public function_traits<F> {};
 
 template <class R, class... Args> struct function_traits<R(Args...)> {
-  using return_type = R;
-  using arg_type = std::tuple<Args...>;
+    using return_type = R;
+    using arg_type = std::tuple<Args...>;
 };
 
 template <class R, class Arg> struct function_traits<R(Arg)> {
-  using return_type = R;
-  using arg_type = Arg;
+    using return_type = R;
+    using arg_type = Arg;
 };
 
-}
+} // namespace psp
