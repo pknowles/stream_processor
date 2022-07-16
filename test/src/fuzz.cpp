@@ -18,7 +18,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     printf("Inc to %i\n", item);
     return item + 1;
   };
-  parallel_streams incrementRunner(thingsToDo, increment);
+  parallel_streams incrementRunner(thingsToDo.begin(), thingsToDo.end(), increment);
 
   auto decrement = [](int item) -> int {
     printf("Dec %i\n", item);

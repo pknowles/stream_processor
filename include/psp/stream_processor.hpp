@@ -83,7 +83,7 @@ using container_to_stream_processor =
     stream_processor<typename Container::iterator, Func>;
 
 /**
- * \brief stream_processor convenience wrapper
+ * \brief stream_processor with threads
  *
  * Includes a stream_processor that takes input from a given container, using
  * its begin()/end(). Automatically starts threads to do the processing. Uses
@@ -98,15 +98,15 @@ using container_to_stream_processor =
  *     std::cout << item << std::endl;
  * @endcode
  */
-template <class Container, class Func>
+template <class InputIterator, class Func>
 class parallel_streams
-    : public container_to_stream_processor<Container, Func>,
+    : public stream_processor<InputIterator, Func>,
       public stream_queue<typename function_traits<Func>::return_type> {
 public:
-    parallel_streams(Container &container, const Func &func,
+    parallel_streams(InputIterator begin, InputIterator end, const Func &func,
                      size_t thread_count = std::thread::hardware_concurrency())
-        : container_to_stream_processor<Container, Func>(
-              std::begin(container), std::end(container), *this, func) {
+        : stream_processor<InputIterator, Func>(
+              begin, end, *this, func) {
         start(thread_count);
     }
     ~parallel_streams() {
@@ -122,8 +122,8 @@ private:
         m_threads.reserve(thread_count);
         for (size_t i = 0; i < thread_count; ++i)
             m_threads.emplace_back(
-                &container_to_stream_processor<Container, Func>::process,
-                (container_to_stream_processor<Container, Func> *)this);
+                &stream_processor<InputIterator, Func>::process,
+                (stream_processor<InputIterator, Func> *)this);
     }
     std::vector<std::thread> m_threads;
 };
