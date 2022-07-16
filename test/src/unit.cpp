@@ -53,11 +53,7 @@ TEST(DoubleOpParallel, Functional) {
     auto increment = [](int item) -> int { return item + 1; };
     auto decrement = [](int item) -> int { return item - 1; };
     parallel_streams runner1(thingsToDo, increment);
-
-    // TODO: should be able to avoid this stall!
-    std::vector<int> delete_me(runner1.begin(), runner1.end());
-
-    parallel_streams runner2(delete_me, decrement);
+    parallel_streams runner2(runner1, decrement);
     int sum = 0;
     for (auto &item : runner2)
         sum += item;
