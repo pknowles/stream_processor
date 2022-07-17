@@ -5,12 +5,37 @@
  * https://opensource.org/licenses/MIT.
  */
 
+#include <psp/stream_processor.hpp>
+#include <psp/thread_pool.hpp>
+
+#include <condition_variable>
+#include <mutex>
+#include <list>
+#include <thread>
 #include <gtest/gtest.h>
 #include <stdio.h>
 
-#include <psp/stream_processor.hpp>
-
 using namespace psp;
+
+// Helper class to block a wait()ing thread until something calls step()
+class stepper {
+public:
+    void wait() {
+        std::unique_lock<std::mutex> lk(m_mutex);
+        m_cond.wait(lk, [&] { return m_waits < m_steps; });
+        ++m_waits;
+    }
+    void step() {
+        std::lock_guard<std::mutex> lk(m_mutex);
+        ++m_steps;
+        m_cond.notify_one();
+    }
+private:
+    std::mutex m_mutex;
+    std::condition_variable m_cond;
+    size_t m_waits{0};
+    size_t m_steps{0};
+};
 
 TEST(BasicSquaresExample, Functional) {
     std::vector<int> input{1, 2, 3};
@@ -88,4 +113,37 @@ TEST(StressPipeline, Functional) {
         sum += item;
     }
     EXPECT_EQ(sum, 1);
+}
+
+TEST(ThreadPoolLockstep, Functional) {
+    std::vector<int> thingsToDo;
+    for (int i = 0; i < 10; ++i)
+        thingsToDo.push_back(i);
+
+    // Use the stepper to verify the pipeline can complete if only one thing can
+    // be processed at a time
+    stepper lockstep;
+
+    auto increment = [&](int item) -> int { lockstep.wait(); return item + 1; };
+    auto decrement = [](int item) -> int { return item - 1; };
+    stream_processor proc1(thingsToDo.begin(), thingsToDo.end(), increment);
+    stream_processor proc2(proc1.begin(), proc1.end(), decrement);
+
+    // Manual thread pool that is shared by both processor objects
+    thread_pool threads(2);
+    threads.process(proc1.make_processor());
+    threads.process(proc2.make_processor());
+
+    // Prime the loops, releasing a single item to be processed
+    lockstep.step();
+
+    int sum = 0;
+    for (auto &item : proc2)
+    {
+        EXPECT_EQ(proc1.size(), 0);
+        EXPECT_EQ(proc2.size(), 0);
+        lockstep.step();
+        sum += item;
+    }
+    EXPECT_EQ(sum, 45);
 }

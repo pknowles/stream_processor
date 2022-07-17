@@ -25,23 +25,23 @@ namespace psp {
 template <typename> struct is_tuple : std::false_type {};
 template <typename... T> struct is_tuple<std::tuple<T...>> : std::true_type {};
 
-template <class InputIterator, class Func> class stream_processor {
+template <class InputIterator, class Func> class iterable_processor {
 public:
     using input_value_type = typename InputIterator::value_type;
     using function_arg0_type = typename function_traits<Func>::arg_type;
     using output_value_type = typename function_traits<Func>::return_type;
 
-    stream_processor(InputIterator begin, InputIterator end,
+    iterable_processor(InputIterator begin, InputIterator end,
                      stream_queue<output_value_type> &output, const Func &func)
         : m_inputBegin(begin), m_inputEnd(end), m_output(output), m_func(func) {
     }
 
     void process_all() {
-        auto p = processor();
+        auto p = make_processor();
         while (p());
     }
 
-    std::function<bool()> processor()
+    std::function<bool()> make_processor()
     {
         auto writer = m_output.make_writer();
         return [this, writer]() mutable -> bool {
@@ -87,9 +87,14 @@ private:
     stream_queue<output_value_type> &m_output;
 };
 
-template <class Container, class Func>
-using container_to_stream_processor =
-    stream_processor<typename Container::iterator, Func>;
+template <class InputIterator, class Func>
+class stream_processor
+    : public iterable_processor<InputIterator, Func>,
+      public stream_queue<typename function_traits<Func>::return_type> {
+public:
+    stream_processor(InputIterator begin, InputIterator end, const Func &func)
+        : iterable_processor<InputIterator, Func>(begin, end, *this, func) {}
+};
 
 /**
  * \brief stream_processor with threads
@@ -109,13 +114,12 @@ using container_to_stream_processor =
  */
 template <class InputIterator, class Func>
 class parallel_streams
-    : public stream_processor<InputIterator, Func>,
-      public stream_queue<typename function_traits<Func>::return_type> {
+    : public stream_processor<InputIterator, Func> {
 public:
     parallel_streams(InputIterator begin, InputIterator end, const Func &func,
                      size_t thread_count = std::thread::hardware_concurrency())
         : stream_processor<InputIterator, Func>(
-              begin, end, *this, func) {
+              begin, end, func) {
         start(thread_count);
     }
     ~parallel_streams() {
