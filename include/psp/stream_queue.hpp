@@ -8,8 +8,6 @@
 #pragma once
 
 #include <assert.h>
-#include <stdio.h>
-
 #include <condition_variable>
 #include <functional>
 #include <mutex>
@@ -92,18 +90,23 @@ public:
 
     class writer {
     public:
-        writer(stream_queue &queue) : m_queue(queue) { m_queue.writer_open(); }
-        ~writer() { m_queue.writer_close(); }
+        writer(stream_queue &queue) : m_queue(&queue) { m_queue->writer_open(); }
+        ~writer() { if (m_queue) m_queue->writer_close(); }
 
-        writer(const writer &other) = delete;
+        // Copy constructor - must open a new reference
+        writer(const writer &other) : m_queue(other.m_queue) { m_queue->writer_open(); }
+
+        // Move constructor - must stop the other queue from closing its reference
+        writer(writer &&other) : m_queue(std::move(other.m_queue)) { other.m_queue = nullptr; }
+
         writer &operator=(const writer &other) = delete;
 
         template <class V> void push(V &&value) {
-            m_queue.push(std::forward<V>(value));
+            m_queue->push(std::forward<V>(value));
         }
 
     private:
-        stream_queue &m_queue;
+        stream_queue *m_queue;
     };
 
     std::optional<value_type> pop() {
@@ -126,15 +129,15 @@ public:
     iterator begin() { return iterator(*this, false); }
     iterator end() { return iterator(*this, true); }
 
-    std::unique_ptr<writer> make_writer() {
-        auto result = std::make_unique<writer>(*this);
+    writer make_writer() {
+        auto result = writer(*this);
         if (!m_hasFirstWriter) {
             // Remove the internal refcount so that readers will be notified
             // when the last writer is deleted.
             writer_close();
             m_hasFirstWriter = true;
         }
-        return std::move(result);
+        return result;
     }
 
 private:

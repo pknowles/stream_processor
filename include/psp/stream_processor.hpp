@@ -10,7 +10,6 @@
 #include <assert.h>
 #include <stdio.h>
 
-#include <condition_variable>
 #include <functional>
 #include <mutex>
 #include <optional>
@@ -37,19 +36,29 @@ public:
         : m_inputBegin(begin), m_inputEnd(end), m_output(output), m_func(func) {
     }
 
-    void process() {
+    void process_all() {
+        auto p = processor();
+        while (p());
+    }
+
+    std::function<bool()> processor()
+    {
         auto writer = m_output.make_writer();
-        input_value_type item;
-        while (getOneInput(item)) {
-            // NOTE: TOTALLY UNTESTED!
-            // Automatically expand inputs of tuples to function arguments,
-            // unless the function intends to take a tuple as the first argument
-            if constexpr (is_tuple<input_value_type>() &&
-                          !is_tuple<function_arg0_type>())
-                writer->push(std::apply(m_func, item));
-            else
-                writer->push(m_func(item));
-        }
+        return [this, writer]() mutable -> bool {
+            input_value_type item;
+            bool hasItem = getOneInput(item);
+            if (hasItem) {
+                // NOTE: TOTALLY UNTESTED!
+                // Automatically expand inputs of tuples to function arguments,
+                // unless the function intends to take a tuple as the first argument
+                if constexpr (is_tuple<input_value_type>() &&
+                            !is_tuple<function_arg0_type>())
+                    writer.push(std::apply(m_func, item));
+                else
+                    writer.push(m_func(item));
+            }
+            return hasItem;
+        };
     }
 
 private:
@@ -122,7 +131,7 @@ private:
         m_threads.reserve(thread_count);
         for (size_t i = 0; i < thread_count; ++i)
             m_threads.emplace_back(
-                &stream_processor<InputIterator, Func>::process,
+                &stream_processor<InputIterator, Func>::process_all,
                 (stream_processor<InputIterator, Func> *)this);
     }
     std::vector<std::thread> m_threads;
