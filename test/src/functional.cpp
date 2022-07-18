@@ -87,6 +87,69 @@ TEST(Functional, DoubleOpParallel) {
     EXPECT_EQ(sum, 45);
 }
 
+TEST(Functional, StressPipelineLockstep) {
+    const int inputsCount = 1000;
+    const int pipelineLength = 178;
+    struct Item {
+        int startValue;
+        int value;
+        int step;
+        int stoppingTime;
+    };
+    stepper lockstep;
+    std::vector<Item> input;
+    for (int i = 1; i < inputsCount; ++i)
+        input.push_back({i, i, 0, 0});
+    std::atomic<int> pipelineTopIndex{0};
+    auto collatz = [&pipelineTopIndex](Item item) -> Item {
+        if (item.step == 0)
+        {
+            // every processor only has one thread so there should be no way for
+            // them to get out of order
+            int expectedStartValue = ++pipelineTopIndex;
+            EXPECT_EQ(expectedStartValue, item.startValue);
+        }
+        item.step++;
+        if (item.value == 1)
+            item.value = 0;
+        item.value = (item.value & 1) ? 3 * item.value + 1 : item.value / 2;
+        if (item.value == 1)
+            item.stoppingTime = item.step;
+        return item;
+    };
+    auto collatzStep = [&lockstep, &collatz](Item item) -> Item {
+        lockstep.wait();
+        return collatz(item);
+    };
+    // Casually create 178 threads. Expect data comes out in the same order
+    // because there's no way for a thread to skip ahead.
+    parallel_streams first(input.begin(), input.end(), collatzStep, 1);
+    using Processor =
+        parallel_streams<decltype(first)::iterator, decltype(collatz)>;
+    std::vector<std::unique_ptr<Processor>> processors;
+    for (int i = 0; i < pipelineLength - 1; ++i)
+        processors.push_back(std::make_unique<Processor>(
+            i == 0 ? first.begin() : processors.back()->begin(),
+            i == 0 ? first.end() : processors.back()->end(), collatz, 1));
+    int sum = 0;
+    int i = 0;
+    lockstep.step();
+    for (auto &item : *processors.back()) {
+        lockstep.step();
+        EXPECT_EQ(item.startValue, i + 1);
+        EXPECT_EQ(item.step, pipelineLength);
+
+        // https://en.wikipedia.org/wiki/Collatz_conjecture
+        // "less than 1000 is 871, which has 178 steps,"
+        if (item.startValue == 871)
+            EXPECT_EQ(item.stoppingTime, 178);
+
+        sum += item.value;
+        i++;
+    }
+    EXPECT_EQ(sum, 1);
+}
+
 TEST(Functional, StressPipeline) {
     std::vector<int> input;
     for (int i = 1; i < 1000; ++i)
@@ -96,22 +159,20 @@ TEST(Functional, StressPipeline) {
             return 0;
         return (x & 1) ? 3 * x + 1 : x / 2;
     };
-    // Casually create 178 threads
-    parallel_streams first(input.begin(), input.end(), collatz);
+    // Casually create 2x178 threads
+    parallel_streams first(input.begin(), input.end(), collatz, 2);
     using Processor =
         parallel_streams<decltype(first)::iterator, decltype(collatz)>;
     std::vector<std::unique_ptr<Processor>> processors;
     for (int i = 0; i < 177; ++i)
         processors.push_back(std::make_unique<Processor>(
             i == 0 ? first.begin() : processors.back()->begin(),
-            i == 0 ? first.end() : processors.back()->end(), collatz, 1));
+            i == 0 ? first.end() : processors.back()->end(), collatz, 2));
     int sum = 0;
     int i = 0;
     // https://en.wikipedia.org/wiki/Collatz_conjecture
     // "less than 1000 is 871, which has 178 steps,"
     for (auto &item : *processors.back()) {
-        if (++i == 871)
-            EXPECT_EQ(item, 1);
         sum += item;
     }
     EXPECT_EQ(sum, 1);
