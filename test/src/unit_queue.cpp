@@ -19,11 +19,7 @@ TEST(Queue, SinglePushPop) {
     std::optional<int> value = queue.pop();
     EXPECT_EQ(queue.size(), 0);
     EXPECT_TRUE(static_cast<bool>(value));
-
-    // gtest EXPECT_EQ requires a const equality operator. However, The iterator
-    // equality operator cannot be const, because it is lazy and may need to
-    // read a value from the queue. Use EXPECT_TRUE instead of EXPECT_EQ.
-    EXPECT_TRUE(*value == 1);
+    EXPECT_EQ(*value, 1);
 }
 
 TEST(Queue, LastWriterUnblocks) {
@@ -36,7 +32,7 @@ TEST(Queue, LastWriterUnblocks) {
     EXPECT_EQ(queue.size(), 1);
     value = queue.pop();
     EXPECT_EQ(queue.size(), 0);
-    EXPECT_TRUE(*value == 1);
+    EXPECT_EQ(*value, 1);
     value = queue.pop();
     EXPECT_FALSE(static_cast<bool>(value));
 }
@@ -52,17 +48,17 @@ TEST(Queue, ComplexSkip) {
         EXPECT_EQ(*it, 1); // re-reading it does not fetch another
         writer.push(2);
         writer.push(3);
-        EXPECT_TRUE(*it == 1); // still the same
+        EXPECT_EQ(*it, 1); // still the same
         EXPECT_EQ(queue.size(), 2);
         ++it; // skip over 2
         EXPECT_EQ(queue.size(), 2); // lazy iterator hasn't consumed the value yet
         ++it;
         EXPECT_EQ(queue.size(), 1); // lazy again until consuming in ==
-        EXPECT_TRUE(*it == 3);
+        EXPECT_EQ(*it, 3);
         EXPECT_EQ(queue.size(), 0); // now there are no values left
         ++it;
     }
 
     // End should not block because there are no writers
-    EXPECT_TRUE(it == queue.end());
+    EXPECT_EQ(it, queue.end());
 }

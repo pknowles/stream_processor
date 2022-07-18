@@ -22,8 +22,6 @@ namespace psp {
  * @brief A lazy input iterator for a queue
  * 
  * Expects the queue's pop() method to return an std::optional<value_type>
- *
- * @tparam Queue 
  */
 template <class Queue> class consuming_queue_iterator {
 public:
@@ -86,28 +84,22 @@ public:
         ++(*this);
         return tmp;
     }
-    bool operator==(consuming_queue_iterator &other) {
+    bool operator==(const consuming_queue_iterator &other) const {
         read();
         other.read();
         return m_value.has_value() == other.m_value.has_value();
     };
-    bool operator==(consuming_queue_iterator &&other) {
-        return *this == other; // call the l-value equality overload
-    };
-    bool operator!=(consuming_queue_iterator &other) {
-        return !(*this == other);
-    };
-    bool operator!=(consuming_queue_iterator &&other) {
+    bool operator!=(const consuming_queue_iterator &other) const {
         return !(*this == other);
     };
 
 private:
-    void read() {
+    void read() const {
         if (!m_end && !m_value.has_value())
             m_value = m_queue.pop();
     }
     Queue &m_queue;
-    std::optional<value_type> m_value;
+    mutable std::optional<value_type> m_value;
     bool m_end;
 };
 
