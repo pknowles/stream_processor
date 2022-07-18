@@ -18,6 +18,13 @@
 
 namespace psp {
 
+/**
+ * @brief A lazy input iterator for a queue
+ * 
+ * Expects the queue's pop() method to return an std::optional<value_type>
+ *
+ * @tparam Queue 
+ */
 template <class Queue> class consuming_queue_iterator {
 public:
     using iterator_category = std::input_iterator_tag;
@@ -30,6 +37,22 @@ public:
 
     consuming_queue_iterator(Queue &queue, bool end)
         : m_queue(queue), m_end(end) {}
+    consuming_queue_iterator(const consuming_queue_iterator &other)
+        : m_queue(other.m_queue), m_value{other.m_value}, m_end(other.m_end) {}
+    consuming_queue_iterator(consuming_queue_iterator &&other)
+        : m_queue(other.m_queue), m_value{std::move(other.m_value)},
+          m_end(other.m_end) {
+        other.m_value.reset();
+        other.m_end = true;
+    }
+    consuming_queue_iterator &operator=(consuming_queue_iterator&& other) {
+        assert(&m_queue == &other.m_queue);
+        m_value = std::move(other.m_value);
+        m_end = other.m_end;
+        other.m_end = true;
+        return *this;
+    }
+
     const_reference operator*() const {
         read();
         return m_value.value();
@@ -68,7 +91,13 @@ public:
         other.read();
         return m_value.has_value() == other.m_value.has_value();
     };
+    bool operator==(consuming_queue_iterator &&other) {
+        return *this == other; // call the l-value equality overload
+    };
     bool operator!=(consuming_queue_iterator &other) {
+        return !(*this == other);
+    };
+    bool operator!=(consuming_queue_iterator &&other) {
         return !(*this == other);
     };
 
@@ -78,7 +107,6 @@ private:
             m_value = m_queue.pop();
     }
     Queue &m_queue;
-    std::size_t m_position;
     std::optional<value_type> m_value;
     bool m_end;
 };
@@ -88,16 +116,30 @@ public:
     using value_type = T;
     using iterator = consuming_queue_iterator<stream_queue>;
 
+    /**
+     * @brief Sharable writer reference to make readers block until the writer
+     * is destroyed.
+     */
     class writer {
     public:
-        writer(stream_queue &queue) : m_queue(&queue) { m_queue->writer_open(); }
-        ~writer() { if (m_queue) m_queue->writer_close(); }
+        writer(stream_queue &queue) : m_queue(&queue) {
+            m_queue->writer_open();
+        }
+        ~writer() {
+            if (m_queue)
+                m_queue->writer_close();
+        }
 
         // Copy constructor - must open a new reference
-        writer(const writer &other) : m_queue(other.m_queue) { m_queue->writer_open(); }
+        writer(const writer &other) : m_queue(other.m_queue) {
+            m_queue->writer_open();
+        }
 
-        // Move constructor - must stop the other queue from closing its reference
-        writer(writer &&other) : m_queue(std::move(other.m_queue)) { other.m_queue = nullptr; }
+        // Move constructor - must stop the other queue from closing its
+        // reference
+        writer(writer &&other) : m_queue(std::move(other.m_queue)) {
+            other.m_queue = nullptr;
+        }
 
         writer &operator=(const writer &other) = delete;
 
