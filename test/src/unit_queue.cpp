@@ -11,7 +11,7 @@
 
 using namespace psp;
 
-TEST(SinglePushPop, Queue) {
+TEST(Queue, SinglePushPop) {
     stream_queue<int> queue;
     auto writer = queue.make_writer();
     writer.push(1);
@@ -26,7 +26,7 @@ TEST(SinglePushPop, Queue) {
     EXPECT_TRUE(*value == 1);
 }
 
-TEST(LastWriterUnblocks, Queue) {
+TEST(Queue, LastWriterUnblocks) {
     stream_queue<int> queue;
     {
         auto writer = queue.make_writer();
@@ -41,9 +41,7 @@ TEST(LastWriterUnblocks, Queue) {
     EXPECT_FALSE(static_cast<bool>(value));
 }
 
-
-
-TEST(ComplexSkip, Queue) {
+TEST(Queue, ComplexSkip) {
     stream_queue<int> queue;
     auto it = queue.begin();
     {

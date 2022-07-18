@@ -20,6 +20,9 @@
 #include "function_traits.hpp"
 #include "stream_queue.hpp"
 
+// TODO: split to another file, along with parallel_streams
+#include "thread_pool.hpp"
+
 namespace psp {
 
 template <typename> struct is_tuple : std::false_type {};
@@ -116,12 +119,23 @@ template <class InputIterator, class Func>
 class parallel_streams
     : public stream_processor<InputIterator, Func> {
 public:
+
+    // Constructor with own dedicated threads
     parallel_streams(InputIterator begin, InputIterator end, const Func &func,
                      size_t thread_count = std::thread::hardware_concurrency())
         : stream_processor<InputIterator, Func>(
               begin, end, func) {
         start(thread_count);
     }
+
+    // Constructor to use a shared thread pool
+    parallel_streams(InputIterator begin, InputIterator end, const Func &func,
+                     thread_pool &threads)
+        : stream_processor<InputIterator, Func>(begin, end, func) {
+        threads.process(
+            stream_processor<InputIterator, Func>::make_processor());
+    }
+
     ~parallel_streams() {
         for (auto &thread : m_threads)
             thread.join();

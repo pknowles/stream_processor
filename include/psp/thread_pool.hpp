@@ -20,7 +20,7 @@ class thread_pool {
 public:
     using multitask = std::function<bool()>;
 
-    thread_pool(size_t count) {
+    thread_pool(size_t count = std::thread::hardware_concurrency()) {
         // All threads start from the beginning of the queue and do one pass
         // through it
 

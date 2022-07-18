@@ -37,7 +37,7 @@ private:
     size_t m_steps{0};
 };
 
-TEST(BasicSquaresExample, Functional) {
+TEST(Functiona, BasicSquaresExample) {
     std::vector<int> input{1, 2, 3};
     parallel_streams squares(input.begin(), input.end(), [](int i){ return i * i; });
     std::vector<int> result(squares.begin(), squares.end());
@@ -47,7 +47,7 @@ TEST(BasicSquaresExample, Functional) {
     EXPECT_EQ(result[2], 9);
 }
 
-TEST(SingleOpSerial, Functional) {
+TEST(Functional, SingleOpSerial) {
     std::vector<int> thingsToDo;
     for (int i = 0; i < 9; ++i)
         thingsToDo.push_back(i);
@@ -59,7 +59,7 @@ TEST(SingleOpSerial, Functional) {
     EXPECT_EQ(sum, 45);
 }
 
-TEST(SingleOpParallel, Functional) {
+TEST(Functional, SingleOpParallel) {
     std::vector<int> thingsToDo;
     for (int i = 0; i < 1000; ++i)
         thingsToDo.push_back(i);
@@ -71,7 +71,7 @@ TEST(SingleOpParallel, Functional) {
     EXPECT_EQ(sum, 500500);
 }
 
-TEST(DoubleOpParallel, Functional) {
+TEST(Functional, DoubleOpParallel) {
     std::vector<int> thingsToDo;
     for (int i = 0; i < 10; ++i)
         thingsToDo.push_back(i);
@@ -85,7 +85,7 @@ TEST(DoubleOpParallel, Functional) {
     EXPECT_EQ(sum, 45);
 }
 
-TEST(StressPipeline, Functional) {
+TEST(Functional, StressPipeline) {
     std::vector<int> input;
     for (int i = 1; i < 1000; ++i)
         input.push_back(i);
@@ -115,7 +115,7 @@ TEST(StressPipeline, Functional) {
     EXPECT_EQ(sum, 1);
 }
 
-TEST(ThreadPoolLockstep, Functional) {
+TEST(Functional, ThreadPoolLockstep) {
     std::vector<int> thingsToDo;
     for (int i = 0; i < 10; ++i)
         thingsToDo.push_back(i);
@@ -146,4 +146,17 @@ TEST(ThreadPoolLockstep, Functional) {
         sum += item;
     }
     EXPECT_EQ(sum, 45);
+}
+
+TEST(Functional, DifferentTypes) {
+    std::vector<int> input{1, 2, 3};
+    std::set<std::string> expected{"1", "4", "9"};
+    thread_pool threads;
+    parallel_streams squareInts(
+        input.begin(), input.end(), [](int i) { return i * i; }, threads);
+    parallel_streams squareStrings(
+        squareInts.begin(), squareInts.end(),
+        [](int i) { return std::to_string(i); }, threads);
+    std::set<std::string> result(squareStrings.begin(), squareStrings.end());
+    EXPECT_EQ(result, expected);
 }
