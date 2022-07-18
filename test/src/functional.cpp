@@ -9,11 +9,11 @@
 #include <psp/thread_pool.hpp>
 
 #include <condition_variable>
-#include <mutex>
-#include <list>
-#include <thread>
 #include <gtest/gtest.h>
+#include <list>
+#include <mutex>
 #include <stdio.h>
+#include <thread>
 
 using namespace psp;
 
@@ -30,6 +30,7 @@ public:
         ++m_steps;
         m_cond.notify_one();
     }
+
 private:
     std::mutex m_mutex;
     std::condition_variable m_cond;
@@ -39,7 +40,8 @@ private:
 
 TEST(Functiona, BasicSquaresExample) {
     std::vector<int> input{1, 2, 3};
-    parallel_streams squares(input.begin(), input.end(), [](int i){ return i * i; });
+    parallel_streams squares(input.begin(), input.end(),
+                             [](int i) { return i * i; });
     std::vector<int> result(squares.begin(), squares.end());
     ASSERT_EQ(result.size(), input.size());
     EXPECT_EQ(result[0], 1);
@@ -96,7 +98,8 @@ TEST(Functional, StressPipeline) {
     };
     // Casually create 178 threads
     parallel_streams first(input.begin(), input.end(), collatz);
-    using Processor = parallel_streams<decltype(first)::iterator, decltype(collatz)>;
+    using Processor =
+        parallel_streams<decltype(first)::iterator, decltype(collatz)>;
     std::vector<std::unique_ptr<Processor>> processors;
     for (int i = 0; i < 177; ++i)
         processors.push_back(std::make_unique<Processor>(
@@ -106,8 +109,7 @@ TEST(Functional, StressPipeline) {
     int i = 0;
     // https://en.wikipedia.org/wiki/Collatz_conjecture
     // "less than 1000 is 871, which has 178 steps,"
-    for (auto &item : *processors.back())
-    {
+    for (auto &item : *processors.back()) {
         if (++i == 871)
             EXPECT_EQ(item, 1);
         sum += item;
@@ -124,7 +126,10 @@ TEST(Functional, ThreadPoolLockstep) {
     // be processed at a time
     stepper lockstep;
 
-    auto increment = [&](int item) -> int { lockstep.wait(); return item + 1; };
+    auto increment = [&](int item) -> int {
+        lockstep.wait();
+        return item + 1;
+    };
     auto decrement = [](int item) -> int { return item - 1; };
     stream_processor proc1(thingsToDo.begin(), thingsToDo.end(), increment);
     stream_processor proc2(proc1.begin(), proc1.end(), decrement);
@@ -138,8 +143,7 @@ TEST(Functional, ThreadPoolLockstep) {
     lockstep.step();
 
     int sum = 0;
-    for (auto &item : proc2)
-    {
+    for (auto &item : proc2) {
         EXPECT_EQ(proc1.size(), 0);
         EXPECT_EQ(proc2.size(), 0);
         lockstep.step();

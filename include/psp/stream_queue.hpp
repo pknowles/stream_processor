@@ -20,7 +20,7 @@ namespace psp {
 
 /**
  * @brief A lazy input iterator for a queue
- * 
+ *
  * Expects the queue's pop() method to return an std::optional<value_type>
  */
 template <class Queue> class consuming_queue_iterator {
@@ -43,7 +43,7 @@ public:
         other.m_value.reset();
         other.m_end = true;
     }
-    consuming_queue_iterator &operator=(consuming_queue_iterator&& other) {
+    consuming_queue_iterator &operator=(consuming_queue_iterator &&other) {
         assert(&m_queue == &other.m_queue);
         m_value = std::move(other.m_value);
         m_end = other.m_end;

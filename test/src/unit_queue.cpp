@@ -43,15 +43,17 @@ TEST(Queue, ComplexSkip) {
     {
         auto writer = queue.make_writer();
         writer.push(1);
-        EXPECT_FALSE(it == queue.end()); // the comparison operator reads a value
-        EXPECT_EQ(*it, 1); // the value is 1
-        EXPECT_EQ(*it, 1); // re-reading it does not fetch another
+        EXPECT_FALSE(it ==
+                     queue.end()); // the comparison operator reads a value
+        EXPECT_EQ(*it, 1);         // the value is 1
+        EXPECT_EQ(*it, 1);         // re-reading it does not fetch another
         writer.push(2);
         writer.push(3);
         EXPECT_EQ(*it, 1); // still the same
         EXPECT_EQ(queue.size(), 2);
         ++it; // skip over 2
-        EXPECT_EQ(queue.size(), 2); // lazy iterator hasn't consumed the value yet
+        EXPECT_EQ(queue.size(),
+                  2); // lazy iterator hasn't consumed the value yet
         ++it;
         EXPECT_EQ(queue.size(), 1); // lazy again until consuming in ==
         EXPECT_EQ(*it, 3);

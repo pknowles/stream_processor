@@ -35,17 +35,18 @@ public:
     using output_value_type = typename function_traits<Func>::return_type;
 
     iterable_processor(InputIterator begin, InputIterator end,
-                     stream_queue<output_value_type> &output, const Func &func)
+                       stream_queue<output_value_type> &output,
+                       const Func &func)
         : m_inputBegin(begin), m_inputEnd(end), m_output(output), m_func(func) {
     }
 
     void process_all() {
         auto p = make_processor();
-        while (p());
+        while (p())
+            ;
     }
 
-    std::function<bool()> make_processor()
-    {
+    std::function<bool()> make_processor() {
         auto writer = m_output.make_writer();
         return [this, writer]() mutable -> bool {
             input_value_type item;
@@ -53,9 +54,10 @@ public:
             if (hasItem) {
                 // NOTE: TOTALLY UNTESTED!
                 // Automatically expand inputs of tuples to function arguments,
-                // unless the function intends to take a tuple as the first argument
+                // unless the function intends to take a tuple as the first
+                // argument
                 if constexpr (is_tuple<input_value_type>() &&
-                            !is_tuple<function_arg0_type>())
+                              !is_tuple<function_arg0_type>())
                     writer.push(std::apply(m_func, item));
                 else
                     writer.push(m_func(item));
@@ -116,15 +118,12 @@ public:
  * @endcode
  */
 template <class InputIterator, class Func>
-class parallel_streams
-    : public stream_processor<InputIterator, Func> {
+class parallel_streams : public stream_processor<InputIterator, Func> {
 public:
-
     // Constructor with own dedicated threads
     parallel_streams(InputIterator begin, InputIterator end, const Func &func,
                      size_t thread_count = std::thread::hardware_concurrency())
-        : stream_processor<InputIterator, Func>(
-              begin, end, func) {
+        : stream_processor<InputIterator, Func>(begin, end, func) {
         start(thread_count);
     }
 
