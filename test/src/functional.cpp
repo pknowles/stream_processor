@@ -87,7 +87,7 @@ TEST(Functional, DoubleOpParallel) {
     EXPECT_EQ(sum, 45);
 }
 
-TEST(Functional, StressPipelineLockstep) {
+TEST(Functional, StressPipelineSingle) {
     const int inputsCount = 1000;
     const int pipelineLength = 178;
     struct Item {
@@ -96,7 +96,6 @@ TEST(Functional, StressPipelineLockstep) {
         int step;
         int stoppingTime;
     };
-    stepper lockstep;
     std::vector<Item> input;
     for (int i = 1; i < inputsCount; ++i)
         input.push_back({i, i, 0, 0});
@@ -117,13 +116,9 @@ TEST(Functional, StressPipelineLockstep) {
             item.stoppingTime = item.step;
         return item;
     };
-    auto collatzStep = [&lockstep, &collatz](Item item) -> Item {
-        lockstep.wait();
-        return collatz(item);
-    };
     // Casually create 178 threads. Expect data comes out in the same order
     // because there's no way for a thread to skip ahead.
-    parallel_streams first(input.begin(), input.end(), collatzStep, 1);
+    parallel_streams first(input.begin(), input.end(), collatz, 1);
     using Processor =
         parallel_streams<decltype(first)::iterator, decltype(collatz)>;
     std::vector<std::unique_ptr<Processor>> processors;
@@ -133,9 +128,7 @@ TEST(Functional, StressPipelineLockstep) {
             i == 0 ? first.end() : processors.back()->end(), collatz, 1));
     int sum = 0;
     int i = 0;
-    lockstep.step();
     for (auto &item : *processors.back()) {
-        lockstep.step();
         EXPECT_EQ(item.startValue, i + 1);
         EXPECT_EQ(item.step, pipelineLength);
 
