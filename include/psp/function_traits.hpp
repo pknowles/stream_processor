@@ -43,13 +43,10 @@ private:
 public:
     using return_type = typename call_type::return_type;
 
-    // O.o
-    template <typename R, typename As> static As pro_args(std::function<R(As)>);
-
     template <typename R, typename... As>
     static std::tuple<As...> pro_args(std::function<R(As...)>);
 
-    using arg_type = decltype(pro_args(std::function{std::declval<F>()}));
+    using arg_types = decltype(pro_args(std::function{std::declval<F>()}));
 };
 
 template <class F> struct function_traits<F &> : public function_traits<F> {};

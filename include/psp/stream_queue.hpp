@@ -67,7 +67,7 @@ public:
         read();
         return &m_value.value();
     }
-    difference_type operator-(consuming_queue_iterator &other) {
+    difference_type operator-(const consuming_queue_iterator &other) const {
         if (m_end && !other.m_end)
             return other.m_queue.size();
         assert(!other.m_end); // would need a negative difference

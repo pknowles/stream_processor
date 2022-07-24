@@ -6,7 +6,11 @@
 cmake_minimum_required(VERSION 3.20)
 
 # Unit tests
-add_executable(unit_tests src/unit_queue.cpp src/functional.cpp)
+add_executable(unit_tests
+    src/unit_indexed.cpp
+    src/unit_queue.cpp
+    src/functional.cpp
+    )
 target_link_libraries(unit_tests psp gtest_main)
 add_subdirectory(googletest)
 include(GoogleTest)

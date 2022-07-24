@@ -31,7 +31,7 @@ template <typename... T> struct is_tuple<std::tuple<T...>> : std::true_type {};
 template <class InputIterator, class Func> class iterable_processor {
 public:
     using input_value_type = typename InputIterator::value_type;
-    using function_arg0_type = typename function_traits<Func>::arg_type;
+    using function_arg0_type = std::tuple_element_t<0, typename function_traits<Func>::arg_types>;
     using output_value_type = typename function_traits<Func>::return_type;
 
     iterable_processor(InputIterator begin, InputIterator end,
@@ -49,8 +49,8 @@ public:
     std::function<bool()> make_processor() {
         auto writer = m_output.make_writer();
         return [this, writer]() mutable -> bool {
-            input_value_type item;
-            bool hasItem = getOneInput(item);
+            auto item = getOneInput();
+            bool hasItem = item.has_value();
             if (hasItem) {
                 // NOTE: TOTALLY UNTESTED!
                 // Automatically expand inputs of tuples to function arguments,
@@ -58,16 +58,16 @@ public:
                 // argument
                 if constexpr (is_tuple<input_value_type>() &&
                               !is_tuple<function_arg0_type>())
-                    writer.push(std::apply(m_func, item));
+                    writer.push(std::apply(m_func, *item));
                 else
-                    writer.push(m_func(item));
+                    writer.push(m_func(*item));
             }
             return hasItem;
         };
     }
 
 private:
-    bool getOneInput(input_value_type &item) {
+    std::optional<input_value_type> getOneInput() {
         std::lock_guard<std::mutex> lk(m_inputMutex);
         bool hasItem = m_inputBegin != m_inputEnd;
         if (hasItem) {
@@ -77,12 +77,11 @@ private:
             if constexpr (std::is_same_v<
                               typename InputIterator::iterator_category,
                               std::input_iterator_tag>)
-                item = std::move(*m_inputBegin);
+                return std::move(*m_inputBegin++);
             else
-                item = *m_inputBegin;
-            ++m_inputBegin;
+                return *m_inputBegin++;
         }
-        return hasItem;
+        return {};
     }
 
     Func m_func;
